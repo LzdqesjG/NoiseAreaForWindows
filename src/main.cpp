@@ -4,7 +4,7 @@
 
 bool Control_Init(HINSTANCE inst);
 HWND Control_GetHwnd();
-void Control_ShowTutorial();
+void Control_ShowWizard();
 void Control_RefreshTargets();
 void Control_ApplyTheme();
 
@@ -45,10 +45,8 @@ int APIENTRY wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR, int) {
     Overlay_Show(g_app.p.enabled);
 
     if (g_app.firstLaunch) {
-        Control_ShowTutorial();     // 首次启动：弹教程
-        g_app.firstLaunch = false;
+        Control_ShowWizard();       // 首次启动：先选语言，再看向导
     }
-    App_SaveConfig();               // 保证 config.json 存在（firstLaunch 已置 false，不会重复弹）
 
     g_app.dirty = true;
 

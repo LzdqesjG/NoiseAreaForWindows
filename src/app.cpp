@@ -109,6 +109,8 @@ void App_LoadConfig() {
     std::string theme = jsonStr(js, "theme", "dark");
     g_app.theme = (theme == "light") ? ThemeKind::Light : ThemeKind::Dark;
 
+    g_app.language = (jsonStr(js, "language", "zh") == "en") ? 1 : 0;
+
     std::string mode = jsonStr(js, "screenMode", "span");
     if (mode == "left") g_app.screenMode = ScreenMode::Left;
     else if (mode == "right") g_app.screenMode = ScreenMode::Right;
@@ -137,6 +139,7 @@ void App_LoadConfig() {
     p.noiseSmoothness  = jsonNum(js, "noiseSmoothness", p.noiseSmoothness);
     p.noiseEvoSpeed    = jsonNum(js, "noiseEvoSpeed", p.noiseEvoSpeed);
     p.noiseDirChange   = jsonNum(js, "noiseDirChange", p.noiseDirChange);
+    p.edgeJitter       = jsonNum(js, "edgeJitter", p.edgeJitter);
     p.animSpeed        = jsonNum(js, "animSpeed", p.animSpeed);
 
     p.edgeColor  = jsonColor(js, "edge",  p.edgeColor);
@@ -159,6 +162,7 @@ void App_SaveConfig() {
     f << "  \"version\": 2,\n";
     f << "  \"firstLaunch\": " << (g_app.firstLaunch ? "true" : "false") << ",\n";
     f << "  \"theme\": \"" << (g_app.theme == ThemeKind::Light ? "light" : "dark") << "\",\n";
+    f << "  \"language\": \"" << (g_app.language ? "en" : "zh") << "\",\n";
     f << "  \"screenMode\": \"" << modeKey(g_app.screenMode) << "\",\n";
     f << "  \"enabled\": " << (p.enabled ? "true" : "false") << ",\n";
     f << "  \"topmost\": " << (p.topmost ? "true" : "false") << ",\n";
@@ -180,6 +184,7 @@ void App_SaveConfig() {
     f << "  \"noiseSmoothness\": " << p.noiseSmoothness << ",\n";
     f << "  \"noiseEvoSpeed\": " << p.noiseEvoSpeed << ",\n";
     f << "  \"noiseDirChange\": " << p.noiseDirChange << ",\n";
+    f << "  \"edgeJitter\": " << p.edgeJitter << ",\n";
     f << "  \"animSpeed\": " << p.animSpeed << ",\n";
     char buf[32];
     auto hex = [&](COLORREF c) {
