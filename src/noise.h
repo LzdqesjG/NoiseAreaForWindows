@@ -64,7 +64,7 @@ struct Params {
     float noiseSmoothness = 1.0f;    // _NoiseSmoothness        0..2
     float noiseEvoSpeed   = 0.03f;   // _NoiseEvoSpeed          0..0.2
     float noiseDirChange  = 60.0f;   // _NoiseDirChangeSpeed    0..120
-    float edgeJitter      = 0.60f;   // 边缘抖动：遮罩按噪声位移的幅度 0..2
+    float edgeJitter      = 1.00f;   // 边缘抖动：位移振幅倍率 0..2（1 = 原振幅 0.1）
     // 动画
     float animSpeed       = 1.0f;
 

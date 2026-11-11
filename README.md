@@ -47,8 +47,8 @@ A topmost, **click-through** block-area noise overlay for the Windows desktop. T
 
 颜色 / Colors：边缘 Edge `#FF5454`、填充 Fill `#B63C3C`、光晕 Glow `#FF2E2E`、闪光 Spark `#FF4949`。
 
-**噪声强度**是核心旋钮：0 = 均匀填充，越大块噪越强；**边缘抖动**决定边界爬动的幅度。
-*Noise strength is the core knob (0 = flat fill); edge jitter sets how far the border crawls.*
+**噪声强度**驱动「双向噪声置换」：整片遮罩先按低频噪声位移，环带再从位移后的遮罩提取，所以外轮廓会像被整片噪声推着走。0 = 干净方块（完全不抖），调大后边界碎成一颗颗小方块。**边缘抖动**是振幅倍率（1 = 基准 0.1）。
+*Noise strength drives the two-way noise displacement: the whole mask is pushed by a low-frequency noise field before the ring bands are extracted, so the outline wobbles as one coherent field. 0 = clean blocks. Edge jitter scales the amplitude (1 = base 0.1).*
 
 ## 用法 / Usage
 

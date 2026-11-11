@@ -56,8 +56,8 @@ static const L2 kStr[S_COUNT] = {
 
     /* S_HINT_CANVAS */      { L"提示：在画布上左键绘制、右键擦除；覆盖层鼠标穿透，点击会落到下面的窗口。",
                                L"Tip: left-drag to paint, right-click to erase. The overlay is click-through." },
-    /* S_HINT_NOISE */       { L"噪声强度是噪域的核心：0 = 均匀填充，越大块噪越强；边缘抖动让遮罩边界随时爬动。",
-                               L"Noise strength is the core knob: 0 = flat fill. Edge jitter makes the border crawl." },
+    /* S_HINT_NOISE */       { L"噪声强度决定外轮廓的碎裂程度：0 = 干净方块，越大边界越像被噪声整片推着走；边缘抖动是它的倍率。",
+                               L"Noise strength breaks the outline up: 0 = clean blocks; higher pushes the border around as a coherent field. Edge jitter scales it." },
     /* S_HINT_DISP1 */       { L"显示器模式决定噪域画在哪块屏：仅左屏 / 仅右屏 / 左右同内容 / 左右跨区",
                                L"Display mode picks where the area lives: left / right / mirrored / span." },
     /* S_HINT_DISP2 */       { L"左右跨区时遮罩覆盖整块虚拟桌面，可以横跨两台显示器画。",
