@@ -9,6 +9,10 @@
 
 ![预览](docs/preview.png)
 
+浅色主题：
+
+![浅色主题](docs/preview-light.png)
+
 ## 算法来源
 
 参考站点（Phira / prpr 官方 block-area 实现）的核心管线，参数与语义对齐：
