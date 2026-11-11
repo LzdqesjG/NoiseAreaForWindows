@@ -8,10 +8,6 @@ A topmost, **click-through** block-area noise overlay for the Windows desktop. T
 - 产物 / build: `build\NoiseArea.exe`（单文件 / single file）
 - Windows 10/11 x64
 
-![深色主题 / dark](docs/preview.png)
-
-![浅色主题 / light](docs/preview-light.png)
-
 ## 功能 / Features
 
 - **编辑噪域**：画笔、矩形、填充、橡皮；可画「减色区」。 / Paint with brush, rect, fill, eraser, plus a dimmed "invert" region.

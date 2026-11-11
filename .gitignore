@@ -8,3 +8,7 @@ mask.dat
 crash.txt
 /*.png
 !docs/
+
+# 截图一律不入库（可能含桌面隐私）
+docs/
+*.png
