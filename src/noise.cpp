@@ -274,7 +274,7 @@ void buildCellColors(const Grid& g, const Params& p, double timeSec,
     //   amp = 0.1 × 噪声强度（0 = 干净方块，完全不抖）。
     // ---
     initNoiseTable();
-    const float nstr = clampf(p.noiseStrength, 0.0f, 2.0f) * clampf(p.edgeJitter, 0.0f, 2.0f);
+    const float nstr = clampf(p.noiseStrength, 0.0f, 20.0f) * clampf(p.edgeJitter, 0.0f, 2.0f);
     const float dN = 0.70703125f;
     const float dtN = dN * ((float)timeSec / 20.0f * 2.59f);
     const float ampN = 0.1f * nstr;
