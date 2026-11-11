@@ -1,0 +1,10 @@
+build/
+*.obj
+*.exe
+*.pdb
+*.ilk
+config.json
+mask.dat
+crash.txt
+/*.png
+!docs/
