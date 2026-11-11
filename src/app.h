@@ -12,6 +12,7 @@ struct AppState {
     Grid   grid;                                   // 网格坐标 = 遮罩空间
     ScreenMode screenMode = ScreenMode::Span;      // 左右跨区
     ThemeKind  theme = ThemeKind::Dark;            // 深色
+    int        language = 0;                       // 0 中文, 1 English
     double timeSec = 6.0;                          // 与网页初始 S.time = 6 对齐
     bool   dirty = true;
     bool   firstLaunch = false;

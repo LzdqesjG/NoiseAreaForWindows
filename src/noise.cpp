@@ -269,12 +269,44 @@ void buildCellColors(const Grid& g, const Params& p, double timeSec,
     const float shinePhase = std::fmod(t * p.shineSpeed * 0.01f, 1.0f);
     const int sparkTick = (int)(t * 6.0f);
 
+    // —— 边缘抖动：把遮罩按噪声位移后再采样 ——
+    // ±45° 双向：两个方向的位移各采一次，取并集，边界方块会随时间爬进爬出。
+    const float jAmp = clampf(p.edgeJitter, 0.0f, 2.0f)
+                     * (0.4f + p.displaceStrength * 3.2f)
+                     * (0.3f + sp * 0.9f)
+                     * (float)std::max(1.0f, (float)gw / 320.0f);
+    const float jt = t * (0.6f + p.displaceSpeed * 1.8f);
+
+    auto occAt = [&](int x, int y) -> uint8_t {
+        if (x < 0 || y < 0 || x >= gw || y >= gh) return 0;
+        return g.cells[(size_t)y * gw + x];
+    };
+    auto edgeAt = [&](int x, int y) -> float {
+        if (x < 0 || y < 0 || x >= gw || y >= gh) return 0.0f;
+        return edgeOf[(size_t)y * gw + x] ? 1.0f : 0.0f;
+    };
+    auto glowAt = [&](int x, int y) -> float {
+        if (x < 0 || y < 0 || x >= gw || y >= gh) return 0.0f;
+        return glowOf[(size_t)y * gw + x];
+    };
+
     for (int cy = 0; cy < gh; ++cy) {
         for (int cx = 0; cx < gw; ++cx) {
             const size_t i = (size_t)cy * gw + cx;
-            const uint8_t st = g.cells[i];
-            const float eA = edgeOf[i] ? 1.0f : 0.0f;
-            const float gA = glowOf[i];
+
+            // 高频噪声 → 每格独立的位移量（块噪的特征）
+            const float jx = (vnoise((float)cx * 0.85f + jt * 3.1f,
+                                     (float)cy * 0.85f - jt * 2.3f, 21) - 0.5f) * 2.0f;
+            const float jy = (vnoise((float)cx * 0.85f - jt * 2.7f,
+                                     (float)cy * 0.85f + jt * 3.3f, 22) - 0.5f) * 2.0f;
+            const int dx = (int)std::lround((jx + jy) * 0.7071f * jAmp);
+            const int dy = (int)std::lround((jx - jy) * 0.7071f * jAmp);
+            const int s1x = cx + dx, s1y = cy + dy;
+            const int s2x = cx - dx, s2y = cy - dy;
+
+            const uint8_t st = (uint8_t)(occAt(s1x, s1y) | occAt(s2x, s2y));
+            const float eA = std::max(edgeAt(s1x, s1y), edgeAt(s2x, s2y));
+            const float gA = std::max(glowAt(s1x, s1y), glowAt(s2x, s2y));
             if (!st && eA == 0.0f && gA <= 0.0f) { out[i] = 0; continue; }
 
             // ——±45° 双向置换后的噪声（噪声强度=0 时退化成均匀填充）——

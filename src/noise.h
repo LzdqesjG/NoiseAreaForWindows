@@ -1,6 +1,5 @@
 // NoiseArea_forwin - 噪域（block area）渲染核心
-// 参考 noisepainter.sling.cc.cd / Phigros block-area 的遮罩与环带管线，
-// 用 CPU 在格子粒度上合成，再最近邻展开成整屏像素。
+// 独立实现的 block-area 遮罩与环带管线：格子遮罩 → 环带提取 → 分层着色。
 #pragma once
 
 #ifndef WIN32_LEAN_AND_MEAN
@@ -65,6 +64,7 @@ struct Params {
     float noiseSmoothness = 1.0f;    // _NoiseSmoothness        0..2
     float noiseEvoSpeed   = 0.03f;   // _NoiseEvoSpeed          0..0.2
     float noiseDirChange  = 60.0f;   // _NoiseDirChangeSpeed    0..120
+    float edgeJitter      = 0.60f;   // 边缘抖动：遮罩按噪声位移的幅度 0..2
     // 动画
     float animSpeed       = 1.0f;
 

@@ -1,122 +1,115 @@
-# 噪域画笔 · Windows 置顶噪域（NoiseAreaForWindows）
+# 噪域画笔 · Noise Area Painter (Windows)
 
-把 [noisepainter.sling.cc.cd](https://noisepainter.sling.cc.cd/) 那套 Phigros / Phira「噪域（block-area）」效果搬到 Windows 桌面：
-一个**置顶、鼠标可穿透**的透明覆盖层直接盖在屏幕上；控制面板里改参数、在预览画布上刷区域，支持双屏。
+在桌面上盖一层**置顶、鼠标可穿透**的块状噪域覆盖层：控制面板改参数、在预览画布上刷区域，支持双屏与中英双语。
 
-- 语言：C++17，纯 Win32 + GDI，无第三方依赖
-- 产物：`build\NoiseArea.exe`（单文件，双击即用）
-- 只在 Windows 上运行；多显示器可分别投放
+A topmost, **click-through** block-area noise overlay for the Windows desktop. Tune it in the control panel, paint it on the preview canvas; multi-monitor and bilingual (中文 / English).
 
-![预览](docs/preview.png)
+- C++17 + Win32 + GDI，无第三方依赖 / no third-party deps
+- 产物 / build: `build\NoiseArea.exe`（单文件 / single file）
+- Windows 10/11 x64
 
-浅色主题：
+![深色主题 / dark](docs/preview.png)
 
-![浅色主题](docs/preview-light.png)
+![浅色主题 / light](docs/preview-light.png)
 
-## 算法来源
+## 功能 / Features
 
-参考站点（Phira / prpr 官方 block-area 实现）的核心管线，参数与语义对齐：
+- **编辑噪域**：画笔、矩形、填充、橡皮；可画「减色区」。 / Paint with brush, rect, fill, eraser, plus a dimmed "invert" region.
+- **边缘噪声抖动**：遮罩按噪声做 ±45° 双向位移后再采样，边界方块会随时间爬进爬出。 / The mask is displaced by noise (±45°, two-way) before sampling, so the border blocks crawl.
+- **四种显示器模式**：仅左屏 / 仅右屏 / 左右同内容 / 左右跨区。 / Four display modes: left, right, mirrored, span.
+- **深色 + 浅色主题**，自绘界面。 / Dark and light themes with a fully custom-drawn UI.
+- **播放向导**：首次启动先选语言，再看引导。 / First run asks for a language, then walks you through it.
+- **配置驱动**：`config.json` 记参数、主题、语言、firstLaunch；`mask.dat` 记遮罩。 / `config.json` holds settings, `mask.dat` holds the painted mask.
 
-1. **遮罩**：按 `格子像素`（默认 8px，对应官方「屏幕 / 8」）切格，每格 1 字节：`bit0` = 普通噪域区，`bit1` = 反相 / 减色区（官方 disabled 材质）。
-2. **±45° 双向噪声置换**：格子中心做两次方向相反的置换后采样 fbm，再叠加逐格闪烁与逐格随机差异，得到噪域的「块噪」。
-3. **环带提取**：官方九宫格膨胀 + 环带（bit row dilation）。`GLOW_W[p] = (6-p)^2.65 / Σ k^2.65`（k=1..6）与站点完全一致；`边缘强度` 反向映射成环带占几格（1..6，越大边缘越细）。第一段环带画 `Edge`，全部环带按权重累加 `Glow`。
-4. **着色**：`Edge / Fill / Glow / Spark / Shine` 五路按网页的系数合成，预乘 alpha 后上屏。
-5. **上屏**：`WS_EX_LAYERED | WS_EX_TRANSPARENT | WS_EX_TOPMOST` + `UpdateLayeredWindow` 逐像素 alpha；`WM_NCHITTEST → HTTRANSPARENT`，点击直接落到下面的窗口。
+## 参数 / Parameters
 
-## 参数
-
-| 分组 | 参数 | 范围 | 默认 | 网页 uniform |
+| 分组 | 中文 | English | 范围 | 默认 |
 |---|---|---|---|---|
-| 外观 | 边缘不透明度 | 0–2 | 0.80 | `_EdgeOpacity` |
-| 外观 | 光晕亮度 | 0–3 | 0.80 | `_GlowIntensity` |
-| 外观 | 边缘强度 | 1–6 | 6 | （环带宽度） |
-| 外观 | 格子像素 | 2–32 | 8 | （1/8 分辨率） |
-| 内部 | 填充强度 | 0–1.5 | 0.667 | `_FillOpacity` |
-| 内部 | 扭曲强度 | 0–0.5 | 0.15 | `_DisplaceStrength` |
-| 内部 | 位移混合 | 0–1 | 0.411 | `_DisplaceBlendIntensity` |
-| 内部 | 位移速度 | 0–5 | 1.5 | `_DisplaceSpeed` |
-| 内部 | 闪光色偏 | 0–1 | 0.20 | `_SparkHueShiftAmount` |
-| 内部 | 闪光明度 | 0–12 | 5.69 | `_SparkMapOpacity` |
-| 内部 | 扫光速度 | 0–60 | 37.9 | `_ShineSpeed` |
-| 内部 | 扫光亮度 | 0–0.5 | 0.12 | `_ShineBrightness` |
-| **噪域** | **噪声强度** | 0–2 | 1.0 | `_NoiseDisplaceStrength` |
-| 噪域 | 噪声半径 | 0.1–1.5 | 0.48 | `_NoiseRadius` |
-| 噪域 | 噪声平滑度 | 0–2 | 1.0 | `_NoiseSmoothness` |
-| 噪域 | 噪声演化速度 | 0–0.2 | 0.03 | `_NoiseEvoSpeed` |
-| 噪域 | 方向变化速度 | 0–120 | 60 | `_NoiseDirChangeSpeed` |
-| 显示 | 播放速度 | 0–3 | 1.0 | （动画倍速） |
+| 外观 | 边缘不透明度 | Edge opacity | 0–2 | 0.80 |
+| 外观 | 光晕亮度 | Glow intensity | 0–3 | 0.80 |
+| 外观 | 边缘强度 | Edge strength | 1–6 | 6 |
+| 外观 | 格子像素 | Block size | 2–32 | 8 |
+| 内部 | 填充强度 | Fill strength | 0–1.5 | 0.667 |
+| 内部 | 扭曲强度 | Warp strength | 0–0.5 | 0.15 |
+| 内部 | 位移混合 | Warp blend | 0–1 | 0.411 |
+| 内部 | 位移速度 | Warp speed | 0–5 | 1.5 |
+| 内部 | 闪光色偏 | Spark hue | 0–1 | 0.20 |
+| 内部 | 闪光明度 | Spark level | 0–12 | 5.69 |
+| 内部 | 扫光速度 | Shine speed | 0–60 | 37.9 |
+| 内部 | 扫光亮度 | Shine level | 0–0.5 | 0.12 |
+| **噪域** | **噪声强度** | **Noise strength** | 0–2 | 1.0 |
+| 噪域 | 噪声半径 | Noise radius | 0.1–1.5 | 0.48 |
+| 噪域 | 噪声平滑度 | Noise smooth | 0–2 | 1.0 |
+| 噪域 | 噪声演化速度 | Noise evolve | 0–0.2 | 0.03 |
+| 噪域 | 方向变化速度 | Direction speed | 0–120 | 60 |
+| **噪域** | **边缘抖动** | **Edge jitter** | 0–2 | 0.60 |
+| 显示 | 播放速度 | Playback speed | 0–3 | 1.0 |
 
-颜色：边缘 `#FF5454` / 填充 `#B63C3C` / 光晕 `#FF2E2E` / 闪光 `#FF4949`，对应 `_EdgeColor` 等。
+颜色 / Colors：边缘 Edge `#FF5454`、填充 Fill `#B63C3C`、光晕 Glow `#FF2E2E`、闪光 Spark `#FF4949`。
 
-**噪声强度是噪域的核心**：0 = 均匀填充，越大块噪越强；配合噪声半径（团块大小）与平滑度调出来的手感最接近网页。
+**噪声强度**是核心旋钮：0 = 均匀填充，越大块噪越强；**边缘抖动**决定边界爬动的幅度。
+*Noise strength is the core knob (0 = flat fill); edge jitter sets how far the border crawls.*
 
-## 用法
+## 用法 / Usage
 
-- **画**：上方画布是整屏（或所选显示器）的缩略图，直接在它上面画，覆盖层实时同步。
-  - 画笔（拖）、矩形（拖框）、填充（连通区）、橡皮（左键拖 / 右键单点擦）
-  - `反相(减色)` 勾上后画的是暗一档的减色区（网页的 bit1 通道）
-  - `笔刷` 滑块 = 半径（单位：格）
-- **标签页**：外观 / 内部 / 噪域 / 显示。
-- **显示器模式**（显示页或「视图」菜单）：
-  - 仅左屏 / 仅右屏：只在某一台显示器上显示
-  - 左右同内容：两台都显示同一份噪域（各按自身分辨率缩放）
-  - 左右跨区：遮罩覆盖整块虚拟桌面，可以横跨两台显示器
-- **主题**：深色 / 浅色（显示页按钮或「视图」菜单）。
-- **文件**：`保存 / 读取 / 清空噪域 / 恢复默认设置`；关窗口自动保存，启动自动读取。
-- **教程**：首次启动自动弹出；之后从「帮助 → 教程」随时打开。
+- 画布就是整屏（或所选显示器）缩略图，左键绘制、右键擦除。 / The canvas is a thumbnail of the screen; left-drag paints, right-click erases.
+- 标签页：外观 / 内部 / 噪域 / 显示。 / Tabs: Look / Inside / Noise / Display.
+- 菜单：文件（保存、读取、清空、恢复默认、退出）、视图（主题、显示器模式、语言）、帮助（播放向导、关于）。
+  *Menus: File, View (theme / display mode / language), Help (wizard / about).*
+- 面板在覆盖层上是挖空的，不会挡住自己；最小化后噪域铺满整屏。 / The panel is punched out of the overlay.
 
-## 配置文件
-
-放在 exe 同目录：
+## 配置文件 / Config
 
 ```jsonc
 {
   "version": 2,
-  "firstLaunch": false,     // true = 下次启动再弹一次教程
+  "firstLaunch": false,     // true = 下次启动再走一遍向导 / show the wizard next launch
   "theme": "dark",          // dark | light
+  "language": "zh",         // zh | en
   "screenMode": "span",     // left | right | same | span
-  "enabled": true,
-  "topmost": true,
-  "playing": true,
+  "enabled": true, "topmost": true, "playing": true,
   "blockPx": 8,
-  "noiseStrength": 1.0,
-  "noiseRadius": 0.48,
-  // …其余参数同名
+  "noiseStrength": 1.0, "noiseRadius": 0.48, "noiseSmoothness": 1.0,
+  "noiseEvoSpeed": 0.03, "noiseDirChange": 60, "edgeJitter": 0.6,
   "edge": "#FF5454", "fill": "#B63C3C", "glow": "#FF2E2E", "spark": "#FF4949"
 }
 ```
 
-- `config.json` 不存在时启动 → 视为首次启动，弹教程并写入默认配置。
-- 「恢复默认设置」= 运行时删掉 `config.json`，随即补一份默认（`firstLaunch=false`），所以不会重复弹教程。
-- 噪域遮罩单独存在 `mask.dat`（换显示器模式/分辨率会按位置/比例重采样保留）。
+- `config.json` 不存在 → 视为首次启动，先选语言，再显示向导，然后写入默认配置。
+  *No `config.json` → treat as first run: ask for a language, show the wizard, then write defaults.*
+- 「恢复默认设置」= 运行时删除 `config.json` 并立刻补一份默认（`firstLaunch=false`），所以不会重复播放向导。
+  *"Reset defaults" deletes `config.json` at runtime and immediately writes a default one, so the wizard does not replay.*
 
-## 编译
+## 编译 / Build
 
-需要 VS2022（MSVC x64），直接跑：
+需要 VS2022（MSVC x64）/ requires VS2022:
 
 ```bat
 build.bat
 ```
 
-脚本会调用 `vcvars64.bat`，用 `cl /std:c++17 /O2 /utf-8 /DNOMINMAX /DUNICODE` 编译 `src\*.cpp` 并链接成 `build\NoiseArea.exe`。
+使用 `cl /std:c++17 /O2 /utf-8 /DNOMINMAX /DUNICODE`；源码是 UTF-8（含中文），必须保留 `/utf-8`。
+*The sources are UTF-8; keep `/utf-8` or Chinese comments will eat the next line under a GBK code page.*
 
-> 源码是 UTF-8（含中文），必须保留 `/utf-8`，否则中文注释在 GBK 代码页下会吞行。
-
-## 文件结构
+## 结构 / Layout
 
 ```
-src\main.cpp      入口：DPI 感知、配置/遮罩加载、教程、消息循环
-src\control.cpp   控制面板（自绘滑块 / 复选框 / 标签页）、预览编辑画布、教程窗口
-src\overlay.cpp   置顶穿透分层窗口（可多块，对应多显示器）
-src\noise.cpp     噪域合成：置换噪声 / 环带 / 着色 / 最近邻展开
-src\app.cpp       config.json、mask.dat、显示器枚举与遮罩空间
-build.bat         一键编译
+src\main.cpp      入口 / entry: DPI, config + mask load, message loop
+src\control.cpp   控制面板、预览画布、播放向导 / panel, canvas, wizard
+src\overlay.cpp   置顶穿透分层窗口（多块）/ layered click-through overlay (multi-target)
+src\noise.cpp     噪域合成：位移噪声 / 环带 / 着色 / nearest-neighbour expand
+src\app.cpp       config.json、mask.dat、显示器枚举 / config, mask, monitors
+src\lang.cpp      中英文案 / bilingual strings
 ```
 
-## 与网页版已知差异
+## 说明 / Notes
 
-- 网页跑官方 GLSL 片元着色器（spark 贴图、辅助遮罩、悬浮 SDF 等分支），这里是 CPU 合成；参数、环带、置换与配色管线一致，spark / 扫光按观感近似。
-- 网页画在导入的图片上；这里画在屏幕空间（一「格」= 屏幕像素），所以 `格子像素` 即最小方块边长。
+- 噪域是**屏幕空间**的（一「格」= 屏幕像素），不是贴在某张图片上。
+  *The area lives in screen space: one cell is a block of screen pixels.*
+- 换格子像素或显示器模式时，遮罩按位置/比例重采样，画的区域不会跑位。
+  *Changing block size or display mode resamples the mask by position/ratio, so it stays put.*
+- 这是独立实现：CPU 合成的 block-area 管线（遮罩 → 环带 → 分层着色），没有参考或使用任何第三方代码。
+  *Independent implementation: a CPU block-area pipeline (mask → ring bands → layered shading). No third-party code was used.*
 
 ## License
 
