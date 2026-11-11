@@ -37,7 +37,7 @@ A topmost, **click-through** block-area noise overlay for the Windows desktop. T
 | 内部 | 闪光明度 | Spark level | 0–12 | 5.69 |
 | 内部 | 扫光速度 | Shine speed | 0–60 | 37.9 |
 | 内部 | 扫光亮度 | Shine level | 0–0.5 | 0.12 |
-| **噪域** | **噪声强度** | **Noise strength** | 0–2 | 1.0 |
+| **噪域** | **噪声强度** | **Noise strength** | 0–20 | 1.0 |
 | 噪域 | 噪声半径 | Noise radius | 0.1–1.5 | 0.48 |
 | 噪域 | 噪声平滑度 | Noise smooth | 0–2 | 1.0 |
 | 噪域 | 噪声演化速度 | Noise evolve | 0–0.2 | 0.03 |

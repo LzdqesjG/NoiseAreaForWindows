@@ -66,7 +66,7 @@ static const SDef kSDefs[SL_COUNT] = {
     { S_SL_SPARK_OPACITY, 0.0f, 12.0f, 0.01f,  1, 2 },
     { S_SL_SHINE_SPEED,   0.0f, 60.0f, 0.1f,   1, 1 },
     { S_SL_SHINE_BRIGHT,  0.0f, 0.5f,  0.005f, 1, 2 },
-    { S_SL_NOISE_STR,     0.0f, 2.0f,  0.01f,  2, 0 },
+    { S_SL_NOISE_STR,     0.0f, 20.0f, 0.01f,  2, 0 },
     { S_SL_NOISE_RADIUS,  0.1f, 1.5f,  0.01f,  2, 2 },
     { S_SL_NOISE_SMOOTH,  0.0f, 2.0f,  0.01f,  2, 0 },
     { S_SL_NOISE_EVO,     0.0f, 0.2f,  0.001f, 2, 2 },
