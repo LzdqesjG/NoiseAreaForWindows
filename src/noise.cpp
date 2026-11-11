@@ -205,6 +205,53 @@ static void dilate3x3(const std::vector<uint8_t>& src, std::vector<uint8_t>& dst
 }
 
 // ---------------------------------------------------------------------------
+// 置换用的噪声贴图（256×256）+ 镜像寻址
+// 原管线用一张 block-noise 贴图的 R 通道；这里程序化生成一张统计特征相近的：
+// 大尺度平滑 + 少量高频，数值压在中间段（对比别太满，位移才不会失控）。
+// ---------------------------------------------------------------------------
+static const int NZ = 256;
+static uint8_t sNoise[NZ * NZ];
+static float   sCentered[256];
+static bool    sNoiseReady = false;
+
+// 模拟 float32 尾数低位舍入（原实现的 medium()）
+static inline float mediumf(float v) {
+    uint32_t b;
+    std::memcpy(&b, &v, 4);
+    b = (b + 0xfffu + ((b >> 13) & 1u)) & ~0x1fffu;
+    float r;
+    std::memcpy(&r, &b, 4);
+    return r;
+}
+
+// 镜像寻址：v 折叠到 [0,1) 再取格子
+static inline int noiseIndex(float v, int size) {
+    v = std::fmod(v, 2.0f);
+    if (v < 0.0f) v += 2.0f;
+    if (v > 1.0f) v = 2.0f - v;
+    int i = (int)std::floor(v * size);
+    if (i < 0) i = 0;
+    if (i > size - 1) i = size - 1;
+    return i;
+}
+
+static void initNoiseTable() {
+    if (sNoiseReady) return;
+    for (int i = 0; i < 256; ++i) sCentered[i] = mediumf(mediumf(i / 255.0f) - 0.5f);
+    for (int y = 0; y < NZ; ++y) {
+        for (int x = 0; x < NZ; ++x) {
+            float fx = (float)x, fy = (float)y;
+            float smooth = fbm(fx / 34.0f, fy / 34.0f, 3, 331);
+            float fine = vnoise(fx / 7.0f, fy / 7.0f, 977);
+            float v = 0.72f * smooth + 0.28f * fine;
+            v = clampf(v, 0.0f, 1.0f);
+            sNoise[y * NZ + x] = (uint8_t)std::lround(64.0f + v * 128.0f);   // 64..192
+        }
+    }
+    sNoiseReady = true;
+}
+
+// ---------------------------------------------------------------------------
 // 合成
 // ---------------------------------------------------------------------------
 static inline void colorToF(COLORREF c, float& r, float& g, float& b) {
@@ -221,8 +268,46 @@ void buildCellColors(const Grid& g, const Params& p, double timeSec,
     if (n == 0 || g.cells.size() != n) return;
     ensureGlowW();
 
+    // ------------------------------------------------------------------
+    // 双向噪声置换：整片遮罩先按低频噪声位移，环带再从位移后的遮罩提取。
+    //   a、b 分别取自 +dt / -dt 的两份镜像噪声，合成 ±45° 两个方向的位移；
+    //   amp = 0.1 × 噪声强度（0 = 干净方块，完全不抖）。
+    // ---
+    initNoiseTable();
+    const float nstr = clampf(p.noiseStrength, 0.0f, 2.0f) * clampf(p.edgeJitter, 0.0f, 2.0f);
+    const float dN = 0.70703125f;
+    const float dtN = dN * ((float)timeSec / 20.0f * 2.59f);
+    const float ampN = 0.1f * nstr;
+
+    std::vector<uint8_t> fm(n, 0);
+    {
+        std::vector<int> wxA(gw), wxB(gw), wyRow(gh);
+        for (int x = 0; x < gw; ++x) {
+            const float u = (x + 0.5f) / (float)gw;
+            wxA[x] = noiseIndex(dtN + u * 2.13f, NZ);
+            wxB[x] = noiseIndex(-dtN + u * 2.13f, NZ);
+        }
+        for (int y = 0; y < gh; ++y)
+            wyRow[y] = noiseIndex(dtN + ((y + 0.5f) / (float)gh) * 1.02f, NZ) * NZ;
+
+        for (int y = 0; y < gh; ++y) {
+            const int row = wyRow[y];
+            for (int x = 0; x < gw; ++x) {
+                const float a = sCentered[sNoise[row + wxA[x]]];
+                const float b = sCentered[sNoise[row + wxB[x]]];
+                const float u = (dN * a + b * (-dN)) * ampN + (x + 0.5f) / (float)gw;
+                const float v = (dN * a + b * dN) * ampN + (y + 0.5f) / (float)gh;
+                int sxi = (int)std::floor(u * gw);
+                int syi = (int)std::floor(v * gh);
+                sxi = sxi < 0 ? 0 : (sxi > gw - 1 ? gw - 1 : sxi);
+                syi = syi < 0 ? 0 : (syi > gh - 1 ? gh - 1 : syi);
+                fm[(size_t)y * gw + x] = g.cells[(size_t)syi * gw + sxi];
+            }
+        }
+    }
+
     std::vector<uint8_t> occ(n, 0);
-    for (size_t i = 0; i < n; ++i) occ[i] = g.cells[i] ? 1 : 0;
+    for (size_t i = 0; i < n; ++i) occ[i] = fm[i] ? 1 : 0;
 
     std::vector<uint8_t> edgeOf(n, 0);
     std::vector<float>   glowOf(n, 0.0f);
@@ -245,7 +330,8 @@ void buildCellColors(const Grid& g, const Params& p, double timeSec,
     }
 
     const float t = (float)timeSec;
-    const float sp = clampf(p.noiseStrength, 0.0f, 2.0f);
+    // 内部亮度噪声的幅度（与「噪声强度」解耦，噪声强度只驱动遮罩位移）
+    const float sp = 0.85f;
     // 噪声半径越大，团块越大（空间频率越低）
     const float radius = std::max(0.08f, p.noiseRadius);
     const float freq = 1.6f / (radius * 2.2f);
@@ -269,44 +355,13 @@ void buildCellColors(const Grid& g, const Params& p, double timeSec,
     const float shinePhase = std::fmod(t * p.shineSpeed * 0.01f, 1.0f);
     const int sparkTick = (int)(t * 6.0f);
 
-    // —— 边缘抖动：把遮罩按噪声位移后再采样 ——
-    // ±45° 双向：两个方向的位移各采一次，取并集，边界方块会随时间爬进爬出。
-    const float jAmp = clampf(p.edgeJitter, 0.0f, 2.0f)
-                     * (0.4f + p.displaceStrength * 3.2f)
-                     * (0.3f + sp * 0.9f)
-                     * (float)std::max(1.0f, (float)gw / 320.0f);
-    const float jt = t * (0.6f + p.displaceSpeed * 1.8f);
-
-    auto occAt = [&](int x, int y) -> uint8_t {
-        if (x < 0 || y < 0 || x >= gw || y >= gh) return 0;
-        return g.cells[(size_t)y * gw + x];
-    };
-    auto edgeAt = [&](int x, int y) -> float {
-        if (x < 0 || y < 0 || x >= gw || y >= gh) return 0.0f;
-        return edgeOf[(size_t)y * gw + x] ? 1.0f : 0.0f;
-    };
-    auto glowAt = [&](int x, int y) -> float {
-        if (x < 0 || y < 0 || x >= gw || y >= gh) return 0.0f;
-        return glowOf[(size_t)y * gw + x];
-    };
-
+    // —— 边缘抖动已在上面的置换里完成，这里直接用位移后的遮罩 ——
     for (int cy = 0; cy < gh; ++cy) {
         for (int cx = 0; cx < gw; ++cx) {
             const size_t i = (size_t)cy * gw + cx;
-
-            // 高频噪声 → 每格独立的位移量（块噪的特征）
-            const float jx = (vnoise((float)cx * 0.85f + jt * 3.1f,
-                                     (float)cy * 0.85f - jt * 2.3f, 21) - 0.5f) * 2.0f;
-            const float jy = (vnoise((float)cx * 0.85f - jt * 2.7f,
-                                     (float)cy * 0.85f + jt * 3.3f, 22) - 0.5f) * 2.0f;
-            const int dx = (int)std::lround((jx + jy) * 0.7071f * jAmp);
-            const int dy = (int)std::lround((jx - jy) * 0.7071f * jAmp);
-            const int s1x = cx + dx, s1y = cy + dy;
-            const int s2x = cx - dx, s2y = cy - dy;
-
-            const uint8_t st = (uint8_t)(occAt(s1x, s1y) | occAt(s2x, s2y));
-            const float eA = std::max(edgeAt(s1x, s1y), edgeAt(s2x, s2y));
-            const float gA = std::max(glowAt(s1x, s1y), glowAt(s2x, s2y));
+            const uint8_t st = fm[i];
+            const float eA = edgeOf[i] ? 1.0f : 0.0f;
+            const float gA = glowOf[i];
             if (!st && eA == 0.0f && gA <= 0.0f) { out[i] = 0; continue; }
 
             // ——±45° 双向置换后的噪声（噪声强度=0 时退化成均匀填充）——
